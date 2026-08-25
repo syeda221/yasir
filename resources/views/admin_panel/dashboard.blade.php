@@ -543,7 +543,7 @@
     }
     .grid-4col {
         display: grid;
-        grid-template-columns: 1fr 1.3fr 1fr 1fr;
+        grid-template-columns: 1.15fr 1.25fr 1fr 1fr;
         gap: 1.25rem;
         margin-bottom: 1.5rem;
     }
@@ -606,15 +606,16 @@
     .biz-grid {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 0.85rem;
+        gap: 0.75rem;
         height: 100%;
     }
     .biz-box {
         border-radius: 16px;
-        padding: 1rem;
+        padding: 0.85rem 0.95rem;
         display: flex;
-        align-items: center;
-        gap: 0.75rem;
+        flex-direction: column;
+        justify-content: space-between;
+        min-height: 95px;
         min-width: 0;
         transition: all 0.25s;
         box-shadow: 0 2px 6px rgba(0,0,0,0.02);
@@ -628,17 +629,24 @@
     .biz-box-prod { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%); border: 1px solid #fde68a; }
     .biz-box-empl { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 1px solid #bbf7d0; }
 
-    .biz-icon {
-        width: 40px; height: 40px;
-        border-radius: 12px;
-        display: flex; align-items: center; justify-content: center;
-        font-size: 1.05rem;
-        flex-shrink: 0;
-        box-shadow: 0 3px 8px rgba(0,0,0,0.06);
+    .biz-box-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        margin-bottom: 0.35rem;
     }
-    .biz-val  { font-size: 1.35rem; font-weight: 900; color: #0f172a; line-height: 1.1; font-family: var(--f); }
-    .biz-lbl  { font-size: 0.72rem; color: #475569; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .biz-trend { font-size: 0.68rem; font-weight: 700; margin-top: 2px; }
+    .biz-icon {
+        width: 34px; height: 34px;
+        border-radius: 10px;
+        display: flex; align-items: center; justify-content: center;
+        font-size: 0.95rem;
+        flex-shrink: 0;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    }
+    .biz-val  { font-size: 1.4rem; font-weight: 900; color: #0f172a; line-height: 1.1; font-family: var(--f); }
+    .biz-lbl  { font-size: 0.72rem; color: #475569; font-weight: 750; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 0.15rem; }
+    .biz-trend { font-size: 0.68rem; font-weight: 700; background: rgba(255,255,255,0.7); backdrop-filter: blur(4px); padding: 2px 6px; border-radius: 99px; }
 
     /* =============================================
        LEGEND LIST (CATEGORY/EXPENSE)
@@ -726,33 +734,42 @@
     .spark-canvas-wrap { width: 85px; height: 45px; flex-shrink: 0; }
 
     /* =============================================
-       RESPONSIVE
+       COMPREHENSIVE RESPONSIVE BREAKPOINTS
     ============================================= */
-    @media (max-width: 1200px) {
-        .fin-overview-grid { grid-template-columns: repeat(2, 1fr); }
-        .kpi-grid { grid-template-columns: repeat(3, 1fr); }
+    @media (max-width: 1450px) {
+        .grid-4col { grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+        .kpi-grid { grid-template-columns: repeat(3, 1fr); gap: 1rem; }
     }
+
+    @media (max-width: 1200px) {
+        .fin-overview-grid { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+        .grid-3col { grid-template-columns: 1fr; gap: 1.25rem; }
+        .spark-grid { grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+    }
+
     @media (max-width: 991px) {
         .db-wrap { padding: 1.25rem 1rem 2.5rem; }
-        .grid-3col, .grid-4col, .grid-2col { grid-template-columns: 1fr; gap: 1rem; }
+        .grid-4col, .grid-2col { grid-template-columns: 1fr; gap: 1rem; }
         .kpi-grid { grid-template-columns: repeat(2, 1fr); gap: 0.85rem; }
-        .spark-grid { grid-template-columns: repeat(2, 1fr); gap: 0.85rem; }
         .bc-right { border-left: none; padding-left: 0; text-align: left; width: 100%; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 1rem; }
     }
+
     @media (max-width: 768px) {
         .fin-overview-grid { grid-template-columns: 1fr; gap: 0.85rem; }
-        .spark-grid { grid-template-columns: 1fr !important; gap: 0.75rem; }
         .kpi-grid { grid-template-columns: 1fr !important; gap: 0.75rem; }
+        .spark-grid { grid-template-columns: 1fr !important; gap: 0.75rem; }
+        .biz-conclusion-box { padding: 1.2rem 1.25rem; }
     }
+
     @media (max-width: 576px) {
         .db-wrap { padding: 0.75rem 0.5rem 2rem; }
         .db-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; margin-bottom: 1.25rem; }
         .db-header-left h1 { font-size: 1.3rem; }
         .db-header-left p { font-size: 0.78rem; }
         .db-btn-sync { width: 100%; justify-content: center; padding: 0.5rem 1rem; }
-        .biz-conclusion-box { padding: 1.1rem 1.2rem; }
         .bc-grand-total { font-size: 1.65rem; }
         .fin-card-val { font-size: 1.35rem; }
+        .biz-grid { grid-template-columns: 1fr; gap: 0.65rem; }
     }
 </style>
 
@@ -1050,35 +1067,43 @@
             <div class="panel-body-flex">
                 <div class="biz-grid">
                     <div class="biz-box biz-box-cust">
-                        <div class="biz-icon" style="background:#e0f2fe; color:#0284c7;"><i class="fas fa-users"></i></div>
+                        <div class="biz-box-top">
+                            <div class="biz-icon" style="background:#e0f2fe; color:#0284c7;"><i class="fas fa-users"></i></div>
+                            <span class="biz-trend up">↑ 15.3%</span>
+                        </div>
                         <div>
                             <div class="biz-val">{{ number_format($customerscount) }}</div>
                             <div class="biz-lbl">Customers</div>
-                            <div class="biz-trend up">↑ 15.3%</div>
                         </div>
                     </div>
                     <div class="biz-box biz-box-supp">
-                        <div class="biz-icon" style="background:#f3e8ff; color:#8b5cf6;"><i class="fas fa-truck"></i></div>
+                        <div class="biz-box-top">
+                            <div class="biz-icon" style="background:#f3e8ff; color:#8b5cf6;"><i class="fas fa-truck"></i></div>
+                            <span class="biz-trend up">↑ 10.6%</span>
+                        </div>
                         <div>
                             <div class="biz-val">{{ number_format($vendorCount) }}</div>
                             <div class="biz-lbl">Suppliers</div>
-                            <div class="biz-trend up">↑ 10.6%</div>
                         </div>
                     </div>
                     <div class="biz-box biz-box-prod">
-                        <div class="biz-icon" style="background:#fef3c7; color:#d97706;"><i class="fas fa-box-open"></i></div>
+                        <div class="biz-box-top">
+                            <div class="biz-icon" style="background:#fef3c7; color:#d97706;"><i class="fas fa-box-open"></i></div>
+                            <span class="biz-trend up">↑ 8.3%</span>
+                        </div>
                         <div>
                             <div class="biz-val">{{ number_format($productCount) }}</div>
                             <div class="biz-lbl">Products</div>
-                            <div class="biz-trend up">↑ 8.3%</div>
                         </div>
                     </div>
                     <div class="biz-box biz-box-empl">
-                        <div class="biz-icon" style="background:#ecfdf5; color:#10b981;"><i class="fas fa-user-tie"></i></div>
+                        <div class="biz-box-top">
+                            <div class="biz-icon" style="background:#ecfdf5; color:#10b981;"><i class="fas fa-user-tie"></i></div>
+                            <span class="biz-trend up">↑ 5.2%</span>
+                        </div>
                         <div>
                             <div class="biz-val">{{ number_format($employeeCount) }}</div>
                             <div class="biz-lbl">Employees</div>
-                            <div class="biz-trend up">↑ 5.2%</div>
                         </div>
                     </div>
                 </div>
