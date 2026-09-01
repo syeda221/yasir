@@ -1010,7 +1010,7 @@
                         </li>
                         
                         <!-- Cashbook / Checkbook -->
-                        @can('checkbook.view')
+                        @canany(['checkbook.view', 'checkbook.create', 'checkbook.edit', 'checkbook.delete'])
                         <li class="nav-item">
                             <a href="#" class="nav-link">
                                 <i class="menu_icon fas fa-wallet"></i>
@@ -1024,7 +1024,7 @@
                                 </ul>
                             </div>
                         </li>
-                        @endcan
+                        @endcanany
 
                         <!-- HR Management Menu -->
                         <li class="nav-item">

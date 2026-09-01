@@ -20,46 +20,35 @@ class RoleController extends Controller
             Permission::firstOrCreate(['name' => $permName, 'guard_name' => 'web']);
         }
 
-        // Ensure purchase_pos.create & stock.adjust permissions exist automatically (so no live migration is needed)
-        Permission::firstOrCreate(['name' => 'purchase_pos.create', 'guard_name' => 'web']);
+        // Ensure stock.adjust permissions exist automatically
         foreach (['stock.adjust.view', 'stock.adjust.create', 'stock.adjust.edit', 'stock.adjust.delete'] as $permName) {
             Permission::firstOrCreate(['name' => $permName, 'guard_name' => 'web']);
         }
+
+        // Ensure website-settings permissions exist
         foreach ([
             'website-settings.view',
             'website-settings.create',
             'website-settings.edit',
             'website-settings.delete',
             'website-settings.update',
-            'website-settings.upload_manage',
-            
-            // Web Products permissions
-            'web_products.view', 'web_products.read',
-            'web_products.create', 'web_products.add',
-            'web_products.edit', 'web_products.delete',
-            
-            // Coupons permissions
-            'coupons.view', 'coupons.read',
-            'coupons.create', 'coupons.add',
-            'coupons.edit', 'coupons.delete',
-            
-            // Web Orders permissions
-            'web_orders.view', 'web_orders.read',
-            'web_orders.create', 'web_orders.add',
-            'web_orders.edit', 'web_orders.delete',
-
-            // General Settings permissions
-            'settings.view', 'settings.read',
-            'settings.create', 'settings.add',
-            'settings.edit', 'settings.delete', 'settings.update',
-
-            // Web Users permissions
-            'web_users.view', 'web_users.read',
-            'web_users.create', 'web_users.add',
-            'web_users.edit', 'web_users.delete'
+            'website-settings.upload_manage'
         ] as $permName) {
             Permission::firstOrCreate(['name' => $permName, 'guard_name' => 'web']);
         }
+
+        // Delete legacy duplicate actions (.read, .add) if they exist
+        Permission::whereIn('name', [
+            'web_products.read', 'web_products.add',
+            'coupons.read', 'coupons.add',
+            'web_orders.read', 'web_orders.add',
+            'settings.read', 'settings.add',
+            'web_users.read', 'web_users.add',
+            'purchase_pos.create'
+        ])->delete();
+
+        // Reset permission cache
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
         
         $allPermissions  = Permission::all();
         return view('admin_panel.roles.role', compact(['roles', 'allPermissions']));
@@ -135,16 +124,13 @@ class RoleController extends Controller
 
     public function updatePermissions(Request $request)
     {
-        // $request->validate([
-        //     'edit_id' => 'required|exists:roles,id',
-        //     'permissions' => 'array',
-        //     'permissions.*' => 'exists:permissions,name'
-        // ]);
-        // dd($request->toArray());
         $role = Role::findOrFail($request->edit_id);
 
-        // Assign new roles (by name)
+        // Assign new permissions (by name)
         $role->syncPermissions($request->permissions ?? []);
+
+        // Reset permission cache
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
         return back()->with('success', 'Role permissions updated successfully!');
     }
