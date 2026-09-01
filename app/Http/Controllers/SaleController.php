@@ -1256,10 +1256,16 @@ class SaleController extends Controller
 
                 // Calculate Line Total (gross before discount)
                 $frontendGross = (float) ($request->gross_amount[$index] ?? 0);
+                $subUnitMode   = $request->sub_unit_mode[$index] ?? 'main';
+
                 if ($frontendGross > 0) {
                     $lineTotal = $frontendGross;
                 } elseif (isset($product) && $product->size_mode === 'by_cartons' && $ppb > 1) {
-                    $lineTotal = ($totalPieces / $ppb) * $dbPrice;
+                    if ($subUnitMode === 'pcs') {
+                        $lineTotal = $totalPieces * $dbPrice;
+                    } else {
+                        $lineTotal = ($totalPieces / $ppb) * $dbPrice;
+                    }
                 } else {
                     $lineTotal = $totalPieces * $dbPrice;
                 }

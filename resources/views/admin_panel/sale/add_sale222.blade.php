@@ -656,7 +656,7 @@
                         <div class="col-sm-6 col-md-2 col-lg-2">
                             <div class="d-flex justify-content-between align-items-center mb-1">
                                 <label class="meta-label mb-0"><i class="fas fa-user text-primary"></i> Customer</label>
-                                <button type="button" class="btn btn-sm btn-outline-success py-0 px-2 rounded-pill fw-bold" data-bs-toggle="modal" data-bs-target="#addCustomerModal" style="font-size: 0.65rem; height: 18px; line-height: 1;">
+                                <button type="button" class="btn btn-sm btn-outline-success py-0 px-2 rounded-pill fw-bold" id="btnOpenAddCustomerModal" data-bs-toggle="modal" data-bs-target="#addCustomerModal" style="font-size: 0.65rem; height: 18px; line-height: 1;">
                                     <i class="fas fa-plus"></i> New
                                 </button>
                             </div>
@@ -818,7 +818,7 @@
                                             <!-- NET AMOUNT -->
                                             <td class="col-amount">
                                                 <input type="text" class="form-control sales-amount text-end input-readonly fw-bold text-dark" name="total[]" value="0" readonly tabindex="-1">
-                                                <input type="hidden" class="gross-amount">
+                                                <input type="hidden" class="gross-amount" name="gross_amount[]">
                                             </td>
 
                                             <!-- ACTION -->
@@ -995,48 +995,50 @@
 
     <!-- Add Customer Modal -->
     <div class="modal fade" id="addCustomerModal" tabindex="-1" aria-labelledby="addCustomerModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="addCustomerModalLabel">
-                        <i class="fas fa-user-plus text-primary me-2"></i>New Customer
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow border-0" style="border-radius: 12px; overflow: hidden;">
+                <div class="modal-header bg-primary text-white py-2 px-3">
+                    <h6 class="modal-title fw-bold" id="addCustomerModalLabel">
+                        <i class="fas fa-user-plus me-1"></i> Quick Add Customer
+                    </h6>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body p-3">
                     <form id="ajaxAddCustomerForm">
                         @csrf
-                        <div class="row g-3">
+                        <div class="row g-2">
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Customer Type <span class="text-danger">*</span></label>
-                                <select class="form-select" name="customer_type" required>
+                                <label class="form-label fw-semibold small mb-1">Customer Type <span class="text-danger">*</span></label>
+                                <select class="form-select form-select-sm" name="customer_type" id="ajax_customer_type" required>
                                     @foreach(\App\Models\CustomerType::orderBy('name')->get() as $type)
-                                        <option value="{{ $type->name }}">{{ $type->name }}</option>
+                                        <option value="{{ $type->name }}" {{ $type->name === 'Main Customer' ? 'selected' : '' }}>{{ $type->name }}</option>
                                     @endforeach
                                 </select>
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Full Name <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" name="customer_name" required placeholder="Customer Name">
+                                <label class="form-label fw-semibold small mb-1">Full Name <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control form-control-sm" name="customer_name" id="ajax_customer_name" required placeholder="Enter customer name">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Mobile</label>
-                                <input type="text" class="form-control" name="mobile" placeholder="0300-1234567">
+                                <label class="form-label fw-semibold small mb-1">Mobile / Phone</label>
+                                <input type="text" class="form-control form-control-sm" name="mobile" placeholder="0300-1234567">
                             </div>
                             <div class="col-md-6">
-                                <label class="form-label fw-bold">Opening Balance</label>
-                                <input type="number" step="0.01" class="form-control" name="opening_balance" value="0">
+                                <label class="form-label fw-semibold small mb-1">Opening Balance (Rs)</label>
+                                <input type="number" step="0.01" class="form-control form-control-sm" name="opening_balance" value="0">
                             </div>
                             <div class="col-12">
-                                <label class="form-label fw-bold">Address</label>
-                                <input type="text" class="form-control" name="address" placeholder="Address">
+                                <label class="form-label fw-semibold small mb-1">Address / City</label>
+                                <input type="text" class="form-control form-control-sm" name="address" placeholder="Enter address or city">
                             </div>
                         </div>
                     </form>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" id="btnSaveAjaxCustomer">Save Customer</button>
+                <div class="modal-footer py-2 px-3 bg-light border-top-0 d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-sm btn-primary fw-bold" id="btnSaveAjaxCustomer">
+                        <i class="fas fa-check me-1"></i> Save & Select
+                    </button>
                 </div>
             </div>
         </div>
@@ -1279,6 +1281,15 @@
                 ensureSaved().then(id => window.open('{{ url('sales') }}/' + id + '/dc-thermal', '_blank'));
             });
 
+            // Open Customer Modal
+            $(document).on('click', '#btnOpenAddCustomerModal', function(e) {
+                e.preventDefault();
+                $('#addCustomerModal').modal('show');
+                setTimeout(function() {
+                    $('#ajax_customer_name').focus();
+                }, 350);
+            });
+
             // AJAX Customer Submit
             $('#btnSaveAjaxCustomer').on('click', function() {
                 let form = $('#ajaxAddCustomerForm');
@@ -1288,27 +1299,24 @@
                 }
                 
                 let btn = $(this);
-                btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin"></i> Saving...');
+                btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Saving...');
                 
                 $.ajax({
                     url: '{{ route('customers.store') }}',
                     type: 'POST',
                     data: form.serialize(),
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
                     success: function(res) {
-                        btn.prop('disabled', false).text('Save Customer');
-                        if (res.success) {
+                        btn.prop('disabled', false).html('<i class="fas fa-check me-1"></i> Save & Select');
+                        if (res.success && res.customer) {
                             $('#addCustomerModal').modal('hide');
                             form[0].reset();
                             
-                            // Make sure UI toggles map to the new customer's type
-                            if (res.customer.customer_type === 'Walking Customer') {
-                                $('#typeWalkin').prop('checked', true).trigger('change');
-                            } else {
-                                $('#typeCustomers').prop('checked', true).trigger('change');
-                            }
-                            
                             // Auto select new customer
-                            let newOption = new Option(res.customer.customer_id + ' — ' + res.customer.customer_name, res.customer.id, true, true);
+                            let displayText = (res.customer.customer_id ? res.customer.customer_id + ' — ' : '') + res.customer.customer_name;
+                            let newOption = new Option(displayText, res.customer.id, true, true);
                             $('#customerSelect').append(newOption).trigger('change');
                             
                             // trigger select2 API selection to load customer details like Prev Bal
@@ -1317,17 +1325,30 @@
                                 params: {
                                     data: {
                                         id: res.customer.id,
-                                        text: res.customer.customer_id + ' — ' + res.customer.customer_name
+                                        text: displayText,
+                                        previous_balance: res.customer.opening_balance || 0
                                     }
                                 }
                             });
                             
-                            showAlert('success', 'Customer added successfully!');
+                            if (typeof showAlert === 'function') {
+                                showAlert('success', 'Customer ' + res.customer.customer_name + ' added successfully!');
+                            }
+                        } else {
+                            alert('Customer could not be created.');
                         }
                     },
-                    error: function(err) {
-                        btn.prop('disabled', false).text('Save Customer');
-                        showAlert('error', 'Error adding customer. Check inputs.');
+                    error: function(xhr) {
+                        btn.prop('disabled', false).html('<i class="fas fa-check me-1"></i> Save & Select');
+                        let errMsg = 'Error adding customer. Check inputs.';
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            errMsg = xhr.responseJSON.message;
+                        }
+                        if (typeof showAlert === 'function') {
+                            showAlert('danger', errMsg);
+                        } else {
+                            alert(errMsg);
+                        }
                     }
                 });
             });
