@@ -11,8 +11,8 @@ class PermissionController extends Controller
 {
     public function index()
     {
-        foreach (['stock.adjust.view', 'stock.adjust.create', 'stock.adjust.edit', 'stock.adjust.delete'] as $permName) {
-            Permission::firstOrCreate(['name' => $permName]);
+        foreach (['checkbook.view', 'checkbook.create', 'checkbook.edit', 'checkbook.delete', 'stock.adjust.view', 'stock.adjust.create', 'stock.adjust.edit', 'stock.adjust.delete'] as $permName) {
+            Permission::firstOrCreate(['name' => $permName, 'guard_name' => 'web']);
         }
         $permissions = Permission::orderBy('name',"ASC")->get();
         return view('admin_panel.permissions.permission', compact('permissions'));

@@ -15,10 +15,15 @@ class RoleController extends Controller
     {
         $roles = Role::orderBy('name',"ASC")->get();
         
+        // Ensure checkbook permissions exist automatically (so no live migration is needed)
+        foreach (['checkbook.view', 'checkbook.create', 'checkbook.edit', 'checkbook.delete'] as $permName) {
+            Permission::firstOrCreate(['name' => $permName, 'guard_name' => 'web']);
+        }
+
         // Ensure purchase_pos.create & stock.adjust permissions exist automatically (so no live migration is needed)
-        Permission::firstOrCreate(['name' => 'purchase_pos.create']);
+        Permission::firstOrCreate(['name' => 'purchase_pos.create', 'guard_name' => 'web']);
         foreach (['stock.adjust.view', 'stock.adjust.create', 'stock.adjust.edit', 'stock.adjust.delete'] as $permName) {
-            Permission::firstOrCreate(['name' => $permName]);
+            Permission::firstOrCreate(['name' => $permName, 'guard_name' => 'web']);
         }
         foreach ([
             'website-settings.view',
@@ -53,7 +58,7 @@ class RoleController extends Controller
             'web_users.create', 'web_users.add',
             'web_users.edit', 'web_users.delete'
         ] as $permName) {
-            Permission::firstOrCreate(['name' => $permName]);
+            Permission::firstOrCreate(['name' => $permName, 'guard_name' => 'web']);
         }
         
         $allPermissions  = Permission::all();
