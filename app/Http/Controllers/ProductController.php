@@ -132,11 +132,17 @@ class ProductController extends Controller
                 default => 'Pcs',
             };
 
-            $stockDisplay = $stockPieces;
+            $stockDisplay = $stockPieces . ' Pcs';
             if (($p->size_mode === 'by_cartons' || $p->size_mode === 'by_size') && $ppb > 1) {
                 $boxes = floor($stockPieces / $ppb);
                 $loose = $stockPieces % $ppb;
-                $stockDisplay = $loose > 0 ? "$boxes.$loose" : $boxes;
+                if ($boxes > 0 && $loose > 0) {
+                    $stockDisplay = "{$boxes} Ctn + {$loose} Pcs";
+                } elseif ($boxes > 0) {
+                    $stockDisplay = "{$boxes} Ctn";
+                } else {
+                    $stockDisplay = "{$loose} Pcs";
+                }
             }
 
             $variants = [];
@@ -200,13 +206,13 @@ class ProductController extends Controller
                     ->join('purchases as pur', 'pur.id', '=', 'pi.purchase_id')
                     ->where('pi.product_id', $p->id)
                     ->whereIn('pur.status_purchase', ['approved', 'Returned', 'Partial'])
-                    ->select('pi.qty as total_pieces', 'pi.color')
+                    ->select('pi.*')
                     ->get();
 
                 // Fetch all purchase returns
                 $purchaseReturnsList = DB::table('purchase_return_items as pri')
                     ->where('pri.product_id', $p->id)
-                    ->select('pri.qty', 'pri.color')
+                    ->select('pri.*')
                     ->get();
 
                 $expanded = [];
@@ -244,7 +250,33 @@ class ProductController extends Controller
                         $purchased = 0;
                         foreach ($purchasesList as $pItem) {
                             if ($this->matchSaleItemToVariant($pItem, $v)) {
-                                $purchased += (float) $pItem->total_pieces;
+                                $itemPpb = (float)($pItem->pieces_per_box > 0 ? $pItem->pieces_per_box : $ppb);
+                                if ($itemPpb <= 0) $itemPpb = 1;
+                                $itemUnit = strtolower($pItem->unit ?? '');
+                                $itemSizeMode = $pItem->size_mode ?? $p->size_mode;
+                                $isCarton = ($itemSizeMode === 'by_cartons' || $itemUnit === 'carton' || $itemUnit === 'ctn' || $itemUnit === 'box');
+
+                                if ($itemUnit === 'gm' || $itemUnit === 'g') {
+                                    $itemPieces = ((float)$pItem->qty) / 1000.0;
+                                } elseif ($isCarton) {
+                                    if ($itemUnit === 'pcs' || $itemUnit === 'pc') {
+                                        $itemPieces = (float)$pItem->qty;
+                                    } else {
+                                        $qStr = (string)$pItem->qty;
+                                        if (strpos($qStr, '.') !== false) {
+                                            $parts = explode('.', $qStr);
+                                            $boxes = (int)($parts[0] ?? 0);
+                                            $loose = (int)($parts[1] ?? 0);
+                                            $itemPieces = ($boxes * $itemPpb) + $loose;
+                                        } else {
+                                            $itemPieces = ((float)$pItem->qty) * $itemPpb;
+                                        }
+                                    }
+                                } else {
+                                    $itemPieces = (float)$pItem->qty;
+                                }
+
+                                $purchased += $itemPieces;
                             }
                         }
 
@@ -252,7 +284,21 @@ class ProductController extends Controller
                         $pReturned = 0;
                         foreach ($purchaseReturnsList as $prItem) {
                             if ($this->matchSaleItemToVariant($prItem, $v)) {
-                                $pReturned += (float) $prItem->qty;
+                                $isCarton = ($p->size_mode === 'by_cartons');
+                                if ($isCarton) {
+                                    $qStr = (string)$prItem->qty;
+                                    if (strpos($qStr, '.') !== false) {
+                                        $parts = explode('.', $qStr);
+                                        $boxes = (int)($parts[0] ?? 0);
+                                        $loose = (int)($parts[1] ?? 0);
+                                        $prPieces = ($boxes * $ppb) + $loose;
+                                    } else {
+                                        $prPieces = ((float)$prItem->qty) * $ppb;
+                                    }
+                                } else {
+                                    $prPieces = (float)$prItem->qty;
+                                }
+                                $pReturned += $prPieces;
                             }
                         }
                         
@@ -309,7 +355,13 @@ class ProductController extends Controller
                     } elseif (($p->size_mode === 'by_cartons' || $p->size_mode === 'by_size') && $ppb > 1) {
                         $vBoxes = floor($vBalance / $ppb);
                         $vLoose = $vBalance % $ppb;
-                        $vStockDisplay = $vLoose > 0 ? "$vBoxes.$vLoose" : $vBoxes;
+                        if ($vBoxes > 0 && $vLoose > 0) {
+                            $vStockDisplay = "{$vBoxes} Ctn + {$vLoose} Pcs";
+                        } elseif ($vBoxes > 0) {
+                            $vStockDisplay = "{$vBoxes} Ctn";
+                        } else {
+                            $vStockDisplay = "{$vLoose} Pcs";
+                        }
                     }
 
                     $v['current_stock'] = $vStockDisplay;
@@ -656,24 +708,34 @@ class ProductController extends Controller
                 $totalStockQty = ($piecesPerBox * $boxesQuantity) + $loosePieces;
             }
 
-            $inputSalePc = (float) $request->sale_price_per_box; // Actually per piece input in this mode
-            $inputPurchPc = (float) $request->purchase_price_per_piece;
+            $inputSalePc = (float) ($request->sale_price_per_piece ?? 0);
+            if ($inputSalePc <= 0 && $request->filled('sale_price_per_box')) {
+                $inputSalePc = (float) $request->sale_price_per_box / $piecesPerBox;
+            }
+            $inputPurchPc = (float) ($request->purchase_price_per_piece ?? 0);
+            if ($inputPurchPc <= 0 && $request->filled('purchase_price_per_box')) {
+                $inputPurchPc = (float) $request->purchase_price_per_box / $piecesPerBox;
+            }
 
             $salePricePerPiece = $inputSalePc;
-            $salePricePerBox = $inputSalePc * $piecesPerBox;
+            $salePricePerBox = $request->filled('sale_price_per_box') && (float) $request->sale_price_per_box > 0
+                ? (float) $request->sale_price_per_box
+                : ($inputSalePc * $piecesPerBox);
 
             $purchasePricePerPiece = $inputPurchPc;
-            $purchasePricePerBox = $inputPurchPc * $piecesPerBox;
+            $purchasePricePerBox = $request->filled('purchase_price_per_box') && (float) $request->purchase_price_per_box > 0
+                ? (float) $request->purchase_price_per_box
+                : ($inputPurchPc * $piecesPerBox);
 
         } else {
             // Treat by_pieces, by_kg, by_meter, by_gm as piece-based mode
-            $pieceQuantity = (int) $request->piece_quantity;
+            $pieceQuantity = (int) ($request->piece_quantity ?? $request->boxes_quantity ?? 0);
             $piecesPerBox = 1;
             $boxesQuantity = $pieceQuantity;
             $totalStockQty = $pieceQuantity;
 
-            $inputSalePc = (float) $request->sale_price_per_box;
-            $inputPurchPc = (float) $request->purchase_price_per_piece;
+            $inputSalePc = (float) ($request->sale_price_per_piece ?? $request->sale_price_per_box ?? 0);
+            $inputPurchPc = (float) ($request->purchase_price_per_piece ?? $request->purchase_price_per_box ?? 0);
 
             $salePricePerPiece = $inputSalePc;
             $salePricePerBox = $inputSalePc;
@@ -697,7 +759,7 @@ class ProductController extends Controller
             $imagePath = null;
         }
 
-        DB::transaction(function () use ($request, $userId, $nextCode, $imagePath, $mode, $height, $width, $piecesPerBox, $boxesQuantity,
+        $product = DB::transaction(function () use ($request, $userId, $nextCode, $imagePath, $mode, $height, $width, $piecesPerBox, $boxesQuantity,
             $totalM2, $pricePerM2, $purchasePricePerM2, $totalStockQty, $piecesPerM2,
             $salePricePerPiece, $salePricePerBox, $purchasePricePerPiece, $purchasePricePerBox) {
 
@@ -719,15 +781,12 @@ class ProductController extends Controller
 
                 // Validate Conv Factors if Weight Unit is selected
                 if (in_array($mode, ['by_kg', 'by_gm', 'by_ton'])) {
-                    $factors = [];
                     $baseCount = 0;
+                    $factors = [];
                     for ($i = 0; $i < count($names); $i++) {
                         if (!empty($names[$i])) {
                             $factor = (float)($conv_factors[$i] ?? 0);
                             $isBase = (int)($is_bases[$i] ?? 0);
-                            if ($factor <= 0) {
-                                throw new \Exception("Conversion Factor must be greater than 0.");
-                            }
                             if ($isBase === 1) {
                                 $baseCount++;
                                 if ($factor != 1) {
@@ -892,10 +951,17 @@ class ProductController extends Controller
                     ]);
                 }
             }
+
+            return $product;
         });
 
-        if ($request->wantsJson()) {
-            return response()->json(['status' => 'success', 'message' => 'Product created successfully']);
+        if ($request->wantsJson() || $request->ajax()) {
+            return response()->json([
+                'status' => 'success',
+                'success' => true,
+                'message' => 'Product created successfully',
+                'product' => $product
+            ]);
         }
 
         return redirect()->back()->with('success', 'Product created successfully');

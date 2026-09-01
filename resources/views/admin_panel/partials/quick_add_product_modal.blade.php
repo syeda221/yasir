@@ -1,84 +1,112 @@
 {{-- ===== QUICK ADD PRODUCT MODAL ===== --}}
 <div class="modal fade" id="quickAddProductModal" tabindex="-1" aria-labelledby="quickAddProductModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content border-0 shadow">
-            <div class="modal-header bg-light border-bottom-0 pb-2">
-                <h5 class="modal-title fw-bold" id="quickAddProductModalLabel">
-                    <i class="fa fa-plus-circle text-primary me-2"></i>Quick Add Product
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content shadow border-0" style="border-radius: 12px; overflow: hidden;">
+            <div class="modal-header bg-primary text-white py-2 px-3">
+                <h6 class="modal-title fw-bold" id="quickAddProductModalLabel">
+                    <i class="fas fa-bolt text-warning me-1"></i> Quick Add Product (Carton &amp; Pieces)
+                </h6>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form id="quickAddProductForm">
                 @csrf
-                <div class="modal-body pt-2">
-                    <div class="row g-3">
-                        <div class="col-12">
-                            <label class="form-label fw-bold small text-muted">Product Name <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" name="product_name" required placeholder="Enter product name">
+                <div class="modal-body p-3">
+                    <div class="row g-2">
+                        <!-- Product Name -->
+                        <div class="col-md-8">
+                            <label class="form-label fw-semibold small mb-1">Product Name <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control form-control-sm" name="product_name" id="qap_product_name" required placeholder="Enter product name">
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold small text-muted">Category <span class="text-danger">*</span></label>
-                            <select class="form-select" name="category_id" id="qap_category" required>
+
+                        <!-- Unit / Size Mode -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small mb-1">Unit Type <span class="text-danger">*</span></label>
+                            <select class="form-select form-select-sm fw-bold text-primary" name="size_mode" id="qap_size_mode" required>
+                                <option value="by_cartons" selected>Carton (With Loose Pcs)</option>
+                                <option value="by_pieces">Pieces / Standard (Pcs)</option>
+                            </select>
+                        </div>
+
+                        <!-- Category -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small mb-1">Category <span class="text-danger">*</span></label>
+                            <select class="form-select form-select-sm" name="category_id" id="qap_category" required>
                                 <option value="">Select Category</option>
                             </select>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold small text-muted">Sub Category</label>
-                            <select class="form-select" name="sub_category_id" id="qap_subcategory">
+
+                        <!-- Sub Category -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small mb-1">Sub Category</label>
+                            <select class="form-select form-select-sm" name="sub_category_id" id="qap_subcategory">
                                 <option value="">Select Sub Category</option>
                             </select>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold small text-muted">Brand <span class="text-danger">*</span></label>
-                            <select class="form-select" name="brand_id" id="qap_brand" required>
+
+                        <!-- Brand -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small mb-1">Brand <span class="text-danger">*</span></label>
+                            <select class="form-select form-select-sm" name="brand_id" id="qap_brand" required>
                                 <option value="">Select Brand</option>
                             </select>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold small text-muted">Model / Series</label>
-                            <input type="text" class="form-control" name="model" placeholder="Optional">
+
+                        <!-- Carton Conversion (Pieces Per Box) -->
+                        <div class="col-md-4" id="qap_ppb_wrap">
+                            <label class="form-label fw-semibold small mb-1 text-primary">Pieces Per Carton (Pcs/Ctn) <span class="text-danger">*</span></label>
+                            <input type="number" class="form-control form-control-sm border-primary fw-bold" name="pieces_per_box" id="qap_ppb" value="12" min="1" placeholder="e.g. 12">
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold small text-muted">Size Mode <span class="text-danger">*</span></label>
-                            <select class="form-select" name="size_mode" id="qap_size_mode" required>
-                                <option value="by_cartons" selected>By Cartons</option>
-                                <option value="by_pieces">By Pieces</option>
-                            </select>
+
+                        <!-- Purchase Prices -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small mb-1">Purchase Price / Pc (Rs)</label>
+                            <input type="number" step="0.01" class="form-control form-control-sm" name="purchase_price_per_piece" id="qap_purch_price_pc" value="0" placeholder="0.00">
                         </div>
-                        <div class="col-md-6" id="qap_ppb_wrap">
-                            <label class="form-label fw-bold small text-muted">Pieces Per Box</label>
-                            <input type="number" class="form-control" name="pieces_per_box" id="qap_ppb" value="1" min="1" placeholder="e.g. 12">
+                        <div class="col-md-4" id="qap_purch_box_wrap">
+                            <label class="form-label fw-semibold small mb-1 text-secondary">Purchase Price / Carton (Rs)</label>
+                            <input type="number" step="0.01" class="form-control form-control-sm" name="purchase_price_per_box" id="qap_purch_price_box" value="0" placeholder="0.00">
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold small text-muted">Low Stock (Cartons)</label>
-                            <input type="number" class="form-control" name="alert_carton_quantity" min="0" placeholder="e.g. 5">
+
+                        <!-- Sale Prices -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small mb-1">Sale Price / Pc (Rs) <span class="text-danger">*</span></label>
+                            <input type="number" step="0.01" class="form-control form-control-sm fw-semibold" name="sale_price_per_piece" id="qap_sale_price_pc" value="0" placeholder="0.00" required>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold small text-muted">Purchase Price /pc</label>
-                            <input type="number" step="0.01" class="form-control" name="purchase_price_per_piece" value="0" placeholder="0.00">
+                        <div class="col-md-4" id="qap_sale_box_wrap">
+                            <label class="form-label fw-semibold small mb-1 text-success">Sale Price / Carton (Rs)</label>
+                            <input type="number" step="0.01" class="form-control form-control-sm fw-bold text-success border-success" name="sale_price_per_box" id="qap_sale_price_box" value="0" placeholder="0.00">
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold small text-muted">Sale Price /pc</label>
-                            <input type="number" step="0.01" class="form-control" name="sale_price_per_box" value="0" placeholder="0.00">
+
+                        <!-- Initial Stock (Cartons) -->
+                        <div class="col-md-4" id="qap_boxes_wrap">
+                            <label class="form-label fw-semibold small mb-1 text-primary">Initial Stock (Cartons)</label>
+                            <input type="number" step="any" class="form-control form-control-sm border-primary text-primary fw-bold" name="boxes_quantity" id="qap_boxes_quantity" value="0" placeholder="e.g. 5 or 5.2">
+                            <small class="text-muted" style="font-size: 0.68rem;">Use <code>5.2</code> for 5 cartons + 2 loose pcs</small>
                         </div>
-                        <div class="col-md-6" id="qap_boxes_wrap">
-                            <label class="form-label fw-bold small text-muted">In-Stock Cartons</label>
-                            <input type="number" class="form-control border-primary text-primary fw-bold" name="boxes_quantity" id="qap_boxes_quantity" value="0" placeholder="0">
+
+                        <!-- Loose Pieces (Extra) -->
+                        <div class="col-md-4" id="qap_loose_wrap">
+                            <label class="form-label fw-semibold small mb-1 text-warning">Extra Loose Pcs</label>
+                            <input type="number" class="form-control form-control-sm border-warning fw-bold" name="loose_pieces" id="qap_loose_pieces" value="0" placeholder="0">
                         </div>
-                        <div class="col-md-6" id="qap_loose_wrap">
-                            <label class="form-label fw-bold small text-muted">Loose Pieces (Extra)</label>
-                            <input type="number" class="form-control border-warning" name="loose_pieces" id="qap_loose_pieces" value="0" placeholder="0">
+
+                        <!-- Initial Stock for Pieces Mode -->
+                        <div class="col-md-4" id="qap_pieces_wrap" style="display: none;">
+                            <label class="form-label fw-semibold small mb-1 text-primary">Initial Stock (Pieces)</label>
+                            <input type="number" step="any" class="form-control form-control-sm border-primary text-primary fw-bold" name="piece_quantity" id="qap_piece_quantity" value="0" placeholder="0">
                         </div>
-                        <div class="col-md-12" id="qap_pieces_wrap" style="display: none;">
-                            <label class="form-label fw-bold small text-muted">Total In-Stock Quantity (Pieces)</label>
-                            <input type="number" class="form-control border-primary text-primary fw-bold" name="piece_quantity" id="qap_piece_quantity" value="0" placeholder="0">
+
+                        <!-- Low Stock Alert -->
+                        <div class="col-md-4">
+                            <label class="form-label fw-semibold small mb-1 text-muted">Low Stock Alert</label>
+                            <input type="number" class="form-control form-control-sm" name="alert_carton_quantity" id="qap_alert_qty" value="0" placeholder="0">
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer border-top-0 pt-0">
-                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-                    <button type="submit" class="btn btn-primary px-4 fw-bold" id="btnQuickSaveProduct">
-                        <i class="fa fa-save me-1"></i>Save Product
+                <div class="modal-footer py-2 px-3 bg-light border-top-0 d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-sm btn-primary fw-bold" id="btnQuickSaveProduct">
+                        <i class="fas fa-check me-1"></i> Save &amp; Add to Invoice
                     </button>
                 </div>
             </form>
@@ -89,23 +117,81 @@
 @push('scripts')
 <script>
 $(document).ready(function() {
+    // Two-way price synchronization helpers
+    function getPpb() {
+        return Math.max(1, parseFloat($('#qap_ppb').val()) || 1);
+    }
+
+    // When ppb changes, recalc box prices
+    $('#qap_ppb').on('input change', function() {
+        let ppb = getPpb();
+        let sPc = parseFloat($('#qap_sale_price_pc').val()) || 0;
+        let pPc = parseFloat($('#qap_purch_price_pc').val()) || 0;
+        if (sPc > 0) $('#qap_sale_price_box').val((sPc * ppb).toFixed(2));
+        if (pPc > 0) $('#qap_purch_price_box').val((pPc * ppb).toFixed(2));
+    });
+
+    // Sale Price / Pc change -> update Sale Price / Box
+    $('#qap_sale_price_pc').on('input', function() {
+        if ($('#qap_size_mode').val() === 'by_cartons') {
+            let ppb = getPpb();
+            let pc = parseFloat($(this).val()) || 0;
+            $('#qap_sale_price_box').val((pc * ppb).toFixed(2));
+        }
+    });
+
+    // Sale Price / Box change -> update Sale Price / Pc
+    $('#qap_sale_price_box').on('input', function() {
+        if ($('#qap_size_mode').val() === 'by_cartons') {
+            let ppb = getPpb();
+            let box = parseFloat($(this).val()) || 0;
+            $('#qap_sale_price_pc').val((box / ppb).toFixed(2));
+        }
+    });
+
+    // Purchase Price / Pc change -> update Purchase Price / Box
+    $('#qap_purch_price_pc').on('input', function() {
+        if ($('#qap_size_mode').val() === 'by_cartons') {
+            let ppb = getPpb();
+            let pc = parseFloat($(this).val()) || 0;
+            $('#qap_purch_price_box').val((pc * ppb).toFixed(2));
+        }
+    });
+
+    // Purchase Price / Box change -> update Purchase Price / Pc
+    $('#qap_purch_price_box').on('input', function() {
+        if ($('#qap_size_mode').val() === 'by_cartons') {
+            let ppb = getPpb();
+            let box = parseFloat($(this).val()) || 0;
+            $('#qap_purch_price_pc').val((box / ppb).toFixed(2));
+        }
+    });
+
     // Toggle fields based on size mode
     $('#qap_size_mode').on('change', function() {
-        if ($(this).val() === 'by_pieces') {
+        let mode = $(this).val();
+        if (mode === 'by_pieces') {
             $('#qap_ppb_wrap').hide();
+            $('#qap_purch_box_wrap').hide();
+            $('#qap_sale_box_wrap').hide();
             $('#qap_boxes_wrap').hide();
             $('#qap_loose_wrap').hide();
             $('#qap_pieces_wrap').show();
             $('#qap_ppb').val(1);
         } else {
             $('#qap_ppb_wrap').show();
+            $('#qap_purch_box_wrap').show();
+            $('#qap_sale_box_wrap').show();
             $('#qap_boxes_wrap').show();
             $('#qap_loose_wrap').show();
             $('#qap_pieces_wrap').hide();
+            if (parseFloat($('#qap_ppb').val()) <= 1) {
+                $('#qap_ppb').val(12);
+            }
         }
     });
 
-    // Load categories, brands, and subcategories immediately
+    // Load categories, brands, and subcategories
     var $catSelect = $('#qap_category');
     var $brandSelect = $('#qap_brand');
     var $subCatSelect = $('#qap_subcategory');
@@ -116,8 +202,6 @@ $(document).ready(function() {
             (data || []).forEach(function(cat) {
                 $catSelect.append('<option value="'+ cat.id +'">'+ cat.name +'</option>');
             });
-        }).fail(function() {
-            console.error('Failed to load categories');
         });
     }
 
@@ -127,28 +211,13 @@ $(document).ready(function() {
             (data || []).forEach(function(brand) {
                 $brandSelect.append('<option value="'+ brand.id +'">'+ brand.name +'</option>');
             });
-        }).fail(function() {
-            console.error('Failed to load brands');
-        });
-    }
-
-    // Load all subcategories initially if empty
-    if ($subCatSelect.find('option').length <= 1) {
-        $.get("{{ url('/get-all-subcategories') }}", function(data) {
-            (data || []).forEach(function(sub) {
-                $subCatSelect.append('<option value="'+ sub.id +'">'+ sub.name +'</option>');
-            });
-        }).fail(function() {
-            console.error('Failed to load subcategories');
         });
     }
 
     // Load subcategories when category changes
     $('#qap_category').on('change', function() {
         var categoryId = $(this).val();
-        var $subCatSelect = $('#qap_subcategory');
         $subCatSelect.html('<option value="">Select Sub Category</option>');
-        
         if (categoryId) {
             $.get("{{ url('/get-subcategories') }}/" + categoryId, function(data) {
                 (data || []).forEach(function(sub) {
@@ -158,7 +227,12 @@ $(document).ready(function() {
         }
     });
 
-    // Submit Quick Add Product
+    // Focus product name on modal show
+    $('#quickAddProductModal').on('shown.bs.modal', function () {
+        $('#qap_product_name').focus();
+    });
+
+    // Submit Quick Add Product Form
     $('#quickAddProductForm').on('submit', function(e) {
         e.preventDefault();
         var $btn = $('#btnQuickSaveProduct');
@@ -173,20 +247,64 @@ $(document).ready(function() {
             success: function(response) {
                 $btn.prop('disabled', false).html(originalHtml);
                 $('#quickAddProductForm')[0].reset();
-
-                // Close modal using jQuery to prevent bootstrap object errors
                 $('#quickAddProductModal').modal('hide');
 
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire({
-                        icon: 'success',
-                        title: 'Product Added!',
-                        text: response.message || 'Product created successfully.',
-                        timer: 2000,
-                        showConfirmButton: false
+                let p = response.product || {};
+                let pName = p.item_name || 'Product';
+                let pId = p.id;
+                let pCode = p.item_code || '';
+
+                // If on Sale page, auto-select newly created product
+                if ($('#salesTableBody').length && pId) {
+                    let $emptyRow = null;
+                    $('#salesTableBody tr').each(function() {
+                        let val = $(this).find('.product-id-hidden').val() || $(this).find('.product').val();
+                        if (!val && !$emptyRow) {
+                            $emptyRow = $(this);
+                        }
                     });
+
+                    if (!$emptyRow && typeof addSaleRow === 'function') {
+                        addSaleRow();
+                        $emptyRow = $('#salesTableBody tr:last');
+                    } else if (!$emptyRow && typeof $('#btnAdd').trigger === 'function') {
+                        $('#btnAdd').trigger('click');
+                        $emptyRow = $('#salesTableBody tr:last');
+                    }
+
+                    if ($emptyRow) {
+                        let displayText = pName + (pCode ? ' (SKU: ' + pCode + ')' : '');
+                        let newOption = new Option(displayText, pId, true, true);
+                        $emptyRow.find('.product').append(newOption).trigger('change');
+                    }
+                }
+
+                // If on Purchase page, auto-select newly created product
+                if ($('#purchaseItemsTable').length && pId) {
+                    let $emptyRow = null;
+                    $('#purchaseItemsTable tbody tr').each(function() {
+                        let val = $(this).find('.product-select').val();
+                        if (!val && !$emptyRow) {
+                            $emptyRow = $(this);
+                        }
+                    });
+
+                    if (!$emptyRow && typeof addPurchaseRow === 'function') {
+                        addPurchaseRow();
+                        $emptyRow = $('#purchaseItemsTable tbody tr:last');
+                    }
+
+                    if ($emptyRow) {
+                        let displayText = pName + (pCode ? ' (SKU: ' + pCode + ')' : '');
+                        let newOption = new Option(displayText, pId, true, true);
+                        $emptyRow.find('.product-select').append(newOption).trigger('change');
+                    }
+                }
+
+                if (typeof showAlert === 'function') {
+                    showAlert('success', 'Product "' + pName + '" created and added successfully!');
                 } else {
-                    alert('Product Added successfully!');
+                    alert('Product "' + pName + '" created successfully!');
                 }
             },
             error: function(xhr) {
@@ -197,15 +315,11 @@ $(document).ready(function() {
                 } else if (xhr.responseJSON && xhr.responseJSON.message) {
                     msg = xhr.responseJSON.message;
                 }
-                
-                if (typeof Swal !== 'undefined') {
-                    Swal.fire('Error', msg, 'error');
-                } else {
-                    alert('Error: ' + msg);
-                }
+                alert('Error: ' + msg);
             }
         });
     });
 });
 </script>
 @endpush
+

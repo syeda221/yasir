@@ -161,26 +161,32 @@
             @foreach ($purchase->items as $item)
                 @php
                     // Size mode logic for display
-                    $sizeMode = $item->size_mode ?? 'by_pieces';
-                    $totalPieces = (int) $item->qty;
+                    $piecesPerBox = (int) ($item->pieces_per_box ?? 1);
+                    if ($piecesPerBox <= 0 && $item->product && $item->product->pieces_per_box > 0) {
+                        $piecesPerBox = (int)$item->product->pieces_per_box;
+                    }
+                    $sizeMode = $item->size_mode ?? ($item->product->size_mode ?? 'by_pieces');
+                    $itemUnit = strtolower(trim($item->unit ?? ''));
+                    $isPcsUnit = in_array($itemUnit, ['pcs', 'pc', 'piece', 'pieces']);
+                    $isCartonUnit = in_array($itemUnit, ['box', 'carton', 'ctn']);
+                    $isCartonMode = !$isPcsUnit && ($isCartonUnit || $sizeMode === 'by_cartons');
 
-                    // Display quantity string
-                    $qtyDisplay = $totalPieces;
-                    if ($sizeMode == 'by_cartons' || $sizeMode == 'by_size') {
-                        $piecesPerBox = (int) ($item->pieces_per_box ?? 1);
-                        // Prevent div by zero
-                        $piecesPerBox = $piecesPerBox > 0 ? $piecesPerBox : 1;
+                    $rawQtyStr = (string) $item->qty;
+                    $rawQty = (float) $item->qty;
 
-                        $boxes = floor($totalPieces / $piecesPerBox);
-                        $loose = $totalPieces % $piecesPerBox;
-
-                        if ($boxes > 0 && $loose > 0) {
-                            $qtyDisplay = "$boxes.$loose";
-                        } elseif ($boxes > 0) {
-                            $qtyDisplay = $boxes;
+                    if ($isPcsUnit) {
+                        $qtyDisplay = "$rawQty Pcs";
+                    } elseif ($isCartonMode && $piecesPerBox > 1) {
+                        if (strpos($rawQtyStr, '.') !== false) {
+                            $parts = explode('.', $rawQtyStr);
+                            $boxes = (int) ($parts[0] ?? 0);
+                            $loose = (int) ($parts[1] ?? 0);
+                            $qtyDisplay = "$boxes.$loose Box";
                         } else {
-                            $qtyDisplay = $loose;
+                            $qtyDisplay = "$rawQty Box";
                         }
+                    } else {
+                        $qtyDisplay = $rawQty . ' ' . ($item->unit ?? 'Pcs');
                     }
                 @endphp
                 <tr>

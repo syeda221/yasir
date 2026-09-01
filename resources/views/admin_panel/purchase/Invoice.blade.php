@@ -359,15 +359,39 @@
                             $width = $item->width ?? 0;
 
                             $piecesPerBox = (int) ($item->pieces_per_box ?? 1);
-                            $m2PerPiece = $item->pieces_per_m2 ?? 0;
+                            if ($piecesPerBox <= 0 && $item->product && $item->product->pieces_per_box > 0) {
+                                $piecesPerBox = (int)$item->product->pieces_per_box;
+                            }
+                            $m2PerPiece = (float) ($item->pieces_per_m2 ?? 0);
                             $m2PerBox = $m2PerPiece * $piecesPerBox;
 
-                            $totalPieces = (int) $item->qty;
-                            $boxes = $piecesPerBox > 0 ? floor($totalPieces / $piecesPerBox) : $totalPieces;
-                            $loosePieces = $piecesPerBox > 0 ? $totalPieces % $piecesPerBox : 0;
+                            $sizeMode = $item->size_mode ?? ($item->product->size_mode ?? 'by_pieces');
+                            $itemUnit = strtolower(trim($item->unit ?? ''));
+                            $isPcsUnit = in_array($itemUnit, ['pcs', 'pc', 'piece', 'pieces']);
+                            $isCartonUnit = in_array($itemUnit, ['box', 'carton', 'ctn']);
+                            $isCartonMode = !$isPcsUnit && ($isCartonUnit || $sizeMode === 'by_cartons');
+
+                            $rawQtyStr = (string) $item->qty;
+                            $rawQty = (float) $item->qty;
+
+                            if ($isCartonMode && $piecesPerBox > 1) {
+                                if (strpos($rawQtyStr, '.') !== false) {
+                                    $parts = explode('.', $rawQtyStr);
+                                    $boxes = (int) ($parts[0] ?? 0);
+                                    $loosePieces = (int) ($parts[1] ?? 0);
+                                    $totalPieces = ($boxes * $piecesPerBox) + $loosePieces;
+                                } else {
+                                    $boxes = (int) $rawQty;
+                                    $loosePieces = 0;
+                                    $totalPieces = $boxes * $piecesPerBox;
+                                }
+                            } else {
+                                $boxes = $piecesPerBox > 0 ? floor($rawQty / $piecesPerBox) : $rawQty;
+                                $loosePieces = $piecesPerBox > 0 ? ((int)$rawQty % $piecesPerBox) : 0;
+                                $totalPieces = (float) $item->qty;
+                            }
 
                             $totalM2Line = $m2PerPiece * $totalPieces;
-                            $sizeMode = $item->size_mode ?? 'by_pieces';
                         @endphp
                         @php
                             $variantInfo = '';
@@ -407,7 +431,7 @@
                                 <div style="font-size: 11px; color: #475569;">
                                     @if ($sizeMode == 'by_size')
                                         @if ($height > 0 || $width > 0)
-                                            Dims: {{ $width }}x{{ $height }}
+                                             Dims: {{ $width }}x{{ $height }}
                                         @endif
                                     @endif
                                 </div>
@@ -415,9 +439,9 @@
 
                             <td class="text-center" style="vertical-align: middle;">
                                 <div style="font-weight: bold; color: #0f172a;">
-                                    @if ($sizeMode == 'by_pieces')
-                                        {{ $totalPieces }} Pcs
-                                    @else
+                                    @if ($isPcsUnit || $sizeMode == 'by_pieces')
+                                        {{ $rawQty }} Pcs
+                                    @elseif ($isCartonMode && $piecesPerBox > 1)
                                         @if ($boxes > 0 && $loosePieces > 0)
                                             {{ $boxes }} Box + {{ $loosePieces }} Pc
                                         @elseif ($boxes > 0)
@@ -425,20 +449,24 @@
                                         @else
                                             {{ $loosePieces }} Pcs
                                         @endif
+                                    @else
+                                        {{ $rawQty }} {{ $item->unit ?? 'Pcs' }}
                                     @endif
                                 </div>
-                                <small class="text-muted" style="font-size: 10px;">({{ $totalPieces }} pcs)</small>
+                                @if (!$isPcsUnit && $isCartonMode && $piecesPerBox > 1)
+                                    <small class="text-muted" style="font-size: 10px;">({{ $totalPieces }} pcs)</small>
+                                @endif
                             </td>
 
                             <td class="text-center" style="vertical-align: middle;">
-                                @if ($sizeMode == 'by_pieces')
+                                @if ($isPcsUnit)
                                     <span class="fw-bold">Pcs</span>
-                                @elseif ($sizeMode == 'by_cartons')
+                                @elseif ($isCartonMode)
                                     <span class="fw-bold">Box</span>
                                 @elseif ($sizeMode == 'by_size')
                                     <span class="fw-bold">{{ number_format($totalM2Line, 4) }}</span> m²
                                 @else
-                                    {{ $item->unit }}
+                                    <span class="fw-bold">{{ $item->unit ?? 'Pcs' }}</span>
                                 @endif
                             </td>
 

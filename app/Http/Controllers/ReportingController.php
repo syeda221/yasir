@@ -228,14 +228,13 @@ class ReportingController extends Controller
                         $purchasesQuery->where('pur.warehouse_id', $warehouseId);
                     }
                     if ($dateFrom) $purchasesQuery->whereDate('pur.created_at', '>=', $dateFrom);
-                    if ($dateTo)   $purchasesQuery->whereDate('pur.created_at', '<=', $dateTo);
-                    $purchasesList = $purchasesQuery->select('pi.qty as total_pieces', 'pi.line_total', 'pi.color')->get();
+                    $purchasesList = $purchasesQuery->select('pi.*', 'pur.subtotal as p_subtotal', 'pur.net_amount as p_net_amount')->get();
 
                     // Fetch all purchase returns
                     $pReturnsQuery = DB::table('purchase_return_items as pri')->where('pri.product_id', $product->id);
                     if ($dateFrom) $pReturnsQuery->whereDate('pri.created_at', '>=', $dateFrom);
                     if ($dateTo)   $pReturnsQuery->whereDate('pri.created_at', '<=', $dateTo);
-                    $purchaseReturnsList = $pReturnsQuery->select('pri.qty', 'pri.line_total', 'pri.color')->get();
+                    $purchaseReturnsList = $pReturnsQuery->select('pri.*')->get();
 
                     // Fetch Stock Adjustments
                     $adjQuery = DB::table('stock_movements')
@@ -316,7 +315,33 @@ class ReportingController extends Controller
                         $purchased = 0; $purchaseAmount = 0;
                         foreach ($purchasesList as $pItem) {
                             if ($this->matchSaleItemToVariant($pItem, $v)) {
-                                $purchased += (float) $pItem->total_pieces;
+                                $ppb = (float)($pItem->pieces_per_box > 0 ? $pItem->pieces_per_box : ($product->pieces_per_box > 0 ? $product->pieces_per_box : 1));
+                                if ($ppb <= 0) $ppb = 1;
+                                $unit = strtolower($pItem->unit ?? '');
+                                $sizeMode = $pItem->size_mode ?? ($product->size_mode ?? 'std');
+                                $isCarton = ($sizeMode === 'by_cartons' || $unit === 'carton' || $unit === 'ctn' || $unit === 'box');
+
+                                if ($unit === 'gm' || $unit === 'g' || $unit === 'gram') {
+                                    $itemPieces = ((float)$pItem->qty) / 1000.0;
+                                } elseif ($isCarton) {
+                                    if ($unit === 'pcs' || $unit === 'pc') {
+                                        $itemPieces = (float)$pItem->qty;
+                                    } else {
+                                        $qStr = (string)$pItem->qty;
+                                        if (strpos($qStr, '.') !== false) {
+                                            $parts = explode('.', $qStr);
+                                            $boxes = (int)($parts[0] ?? 0);
+                                            $loose = (int)($parts[1] ?? 0);
+                                            $itemPieces = ($boxes * $ppb) + $loose;
+                                        } else {
+                                            $itemPieces = ((float)$pItem->qty) * $ppb;
+                                        }
+                                    }
+                                } else {
+                                    $itemPieces = (float)$pItem->qty;
+                                }
+
+                                $purchased += $itemPieces;
                                 $purchaseAmount += (float) $pItem->line_total;
                             }
                         }
@@ -325,7 +350,23 @@ class ReportingController extends Controller
                         $pReturned = 0; $pReturnAmount = 0;
                         foreach ($purchaseReturnsList as $prItem) {
                             if ($this->matchSaleItemToVariant($prItem, $v)) {
-                                $pReturned += (float) $prItem->qty;
+                                $ppb = (float)($product->pieces_per_box > 0 ? $product->pieces_per_box : 1);
+                                if ($ppb <= 0) $ppb = 1;
+                                $isCarton = ($product->size_mode === 'by_cartons');
+                                if ($isCarton) {
+                                    $qStr = (string)$prItem->qty;
+                                    if (strpos($qStr, '.') !== false) {
+                                        $parts = explode('.', $qStr);
+                                        $boxes = (int)($parts[0] ?? 0);
+                                        $loose = (int)($parts[1] ?? 0);
+                                        $prPieces = ($boxes * $ppb) + $loose;
+                                    } else {
+                                        $prPieces = ((float)$prItem->qty) * $ppb;
+                                    }
+                                } else {
+                                    $prPieces = (float)$prItem->qty;
+                                }
+                                $pReturned += $prPieces;
                                 $pReturnAmount += (float) $prItem->line_total;
                             }
                         }
@@ -465,7 +506,27 @@ class ReportingController extends Controller
                 }
                 if ($dateFrom) $pRetQuery->whereDate('pr.created_at', '>=', $dateFrom);
                 if ($dateTo)   $pRetQuery->whereDate('pr.created_at', '<=', $dateTo);
-                $pReturned = (float) $pRetQuery->sum('pri.qty');
+
+                $prItems = $pRetQuery->select('pri.*')->get();
+                $pReturned = 0;
+                $ppb = (float)($product->pieces_per_box > 0 ? $product->pieces_per_box : 1);
+                foreach ($prItems as $pri) {
+                    $isCarton = ($product->size_mode === 'by_cartons');
+                    if ($isCarton) {
+                        $qStr = (string)$pri->qty;
+                        if (strpos($qStr, '.') !== false) {
+                            $parts = explode('.', $qStr);
+                            $boxes = (int)($parts[0] ?? 0);
+                            $loose = (int)($parts[1] ?? 0);
+                            $prPieces = ($boxes * $ppb) + $loose;
+                        } else {
+                            $prPieces = ((float)$pri->qty) * $ppb;
+                        }
+                    } else {
+                        $prPieces = (float)$pri->qty;
+                    }
+                    $pReturned += $prPieces;
+                }
 
                 // Stock Adjustments
                 $adjQuery = DB::table('stock_movements')
@@ -2529,18 +2590,48 @@ class ReportingController extends Controller
             }
         }
 
-        $result = $query->select(DB::raw("
-            COALESCE(SUM(purchase_items.qty), 0) as total_qty,
-            COALESCE(SUM(
-                CASE
-                    WHEN COALESCE(purchases.subtotal, 0) > 0
-                    THEN purchase_items.line_total / purchases.subtotal * purchases.net_amount
-                    ELSE purchase_items.line_total
-                END
-            ), 0) as total_net_amount
-        "))->first();
+        $items = $query->select('purchase_items.*', 'purchases.subtotal as p_subtotal', 'purchases.net_amount as p_net_amount')->get();
+        $totalPiecesSum = 0;
+        $totalNetSum = 0;
 
-        return [(float) $result->total_qty, (float) $result->total_net_amount];
+        $product = Product::find($productId);
+        $prodPpb = ($product && $product->pieces_per_box > 0) ? (int)$product->pieces_per_box : 1;
+
+        foreach ($items as $pi) {
+            $ppb = (float)($pi->pieces_per_box > 0 ? $pi->pieces_per_box : $prodPpb);
+            if ($ppb <= 0) $ppb = 1;
+
+            $unit = strtolower($pi->unit ?? '');
+            $sizeMode = $pi->size_mode ?? ($product->size_mode ?? 'std');
+            $isCarton = ($sizeMode === 'by_cartons' || $unit === 'carton' || $unit === 'ctn' || $unit === 'box');
+
+            if ($unit === 'gm' || $unit === 'g' || $unit === 'gram') {
+                $itemPieces = ((float)$pi->qty) / 1000.0;
+            } elseif ($isCarton) {
+                if ($unit === 'pcs' || $unit === 'pc') {
+                    $itemPieces = (float)$pi->qty;
+                } else {
+                    $qStr = (string)$pi->qty;
+                    if (strpos($qStr, '.') !== false) {
+                        $parts = explode('.', $qStr);
+                        $boxes = (int)($parts[0] ?? 0);
+                        $loose = (int)($parts[1] ?? 0);
+                        $itemPieces = ($boxes * $ppb) + $loose;
+                    } else {
+                        $itemPieces = ((float)$pi->qty) * $ppb;
+                    }
+                }
+            } else {
+                $itemPieces = (float)$pi->qty;
+            }
+
+            $totalPiecesSum += $itemPieces;
+
+            $lineNet = (float)($pi->p_subtotal > 0 ? ($pi->line_total / $pi->p_subtotal * $pi->p_net_amount) : $pi->line_total);
+            $totalNetSum += $lineNet;
+        }
+
+        return [(float) $totalPiecesSum, (float) $totalNetSum];
     }
 
     /**
