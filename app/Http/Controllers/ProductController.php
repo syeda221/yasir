@@ -25,13 +25,27 @@ class ProductController extends Controller
             return response()->json(['retail_price' => 0]);
         }
 
+        $ppb = $product->pieces_per_box > 0 ? (int)$product->pieces_per_box : 1;
+        $salePiece = (float)($product->sale_price_per_piece ?? 0);
+        $saleBox = (float)($product->sale_price_per_box ?? 0);
+        if ($saleBox <= 0 && $salePiece > 0) {
+            $saleBox = $salePiece * $ppb;
+        }
+
+        $purchPiece = (float)($product->purchase_price_per_piece ?? 0);
+        $purchBox = (float)($product->purchase_price_per_box ?? 0);
+        if ($purchBox <= 0 && $purchPiece > 0) {
+            $purchBox = $purchPiece * $ppb;
+        }
+
         // Determine price based on mode
         $price = 0;
         if ($product->size_mode === 'by_size') {
             $price = $product->price_per_m2;
+        } elseif ($product->size_mode === 'by_cartons') {
+            $price = $saleBox > 0 ? $saleBox : $salePiece;
         } else {
-            // For by_cartons or by_pieces, use the box/piece price
-            $price = $product->sale_price_per_box;
+            $price = $salePiece > 0 ? $salePiece : $saleBox;
         }
 
         return response()->json([
@@ -39,10 +53,12 @@ class ProductController extends Controller
             'wholesale_price'       => (float)($product->wholesale_price ?? 0),
             'weight_per_piece'      => (float)($product->weight_per_piece ?? 0),
             'size_mode'             => $product->size_mode,
-            'pieces_per_box'        => $product->pieces_per_box,
+            'pieces_per_box'        => $ppb,
             'price_per_m2'          => $product->price_per_m2,
-            'sale_price_per_box'    => $product->sale_price_per_box,
-            'sale_price_per_piece'  => $product->sale_price_per_piece,
+            'sale_price_per_box'    => $saleBox,
+            'sale_price_per_piece'  => $salePiece,
+            'purchase_price_per_box' => $purchBox,
+            'purchase_price_per_piece' => $purchPiece,
             'height'                => $product->height,
             'width'                 => $product->width,
             'item_code'             => $product->item_code,
@@ -89,7 +105,7 @@ class ProductController extends Controller
         $term = $request->get('term') ?? $request->get('q') ?? '';
 
         $query = Product::query()
-            ->select('id', 'item_name', 'item_code', 'barcode_path', 'size_mode', 'unit_id', 'height', 'width', 'pieces_per_box', 'purchase_price_per_box', 'purchase_price_per_m2', 'purchase_price_per_piece', 'pieces_per_m2', 'purchase_discount_percent', 'sale_discount_percent', 'color', 'sale_price_per_piece')
+            ->select('id', 'item_name', 'item_code', 'barcode_path', 'size_mode', 'unit_id', 'height', 'width', 'pieces_per_box', 'sale_price_per_box', 'purchase_price_per_box', 'purchase_price_per_m2', 'purchase_price_per_piece', 'pieces_per_m2', 'purchase_discount_percent', 'sale_discount_percent', 'color', 'sale_price_per_piece', 'wholesale_price', 'weight_per_piece')
             ->with(['unit'])
             ->withSum('warehouseStocks', 'total_pieces') /* Sum PIECES, not boxes */
             ->where('is_active', true) /* Only active products */
@@ -199,7 +215,19 @@ class ProductController extends Controller
                     $color = (isset($v['color']) && $v['color'] !== '-') ? " ({$v['color']})" : '';
                     $vName = ($v['name'] ?? $p->item_name) . $size . $color;
                     
-                    $initial = (float) ($v['stock'] ?? 0);
+                    $vRawStock = (string) ($v['stock'] ?? '0');
+                    if (($p->size_mode === 'by_cartons' || $p->size_mode === 'by_size') && $ppb > 1) {
+                        if (strpos($vRawStock, '.') !== false) {
+                            $parts = explode('.', $vRawStock);
+                            $boxes = (int) ($parts[0] ?? 0);
+                            $loose = (int) ($parts[1] ?? 0);
+                            $initial = ($boxes * $ppb) + $loose;
+                        } else {
+                            $initial = (float) $vRawStock * $ppb;
+                        }
+                    } else {
+                        $initial = (float) $vRawStock;
+                    }
                     $vBalance = 0;
 
                     if (isset($v['conv_factor']) && $p->size_mode === 'by_kg') {
@@ -287,6 +315,11 @@ class ProductController extends Controller
                     $v['current_stock'] = $vStockDisplay;
                     $variantJson = json_encode($v);
 
+                    $vSalePc = (float)($v['sale_price'] ?? $p->sale_price_per_piece ?? 0);
+                    $vPurchPc = (float)($v['purch_price'] ?? $p->purchase_price_per_piece ?? 0);
+                    $vSaleBox = $p->size_mode === 'by_cartons' ? ($vSalePc * $ppb) : $vSalePc;
+                    $vPurchBox = $p->size_mode === 'by_cartons' ? ($vPurchPc * $ppb) : $vPurchPc;
+
                     $expanded[] = [
                         'id' => $p->id . '|variant|' . base64_encode($variantJson),
                         'text' => $vName." (SKU: {$p->item_code})",
@@ -298,11 +331,14 @@ class ProductController extends Controller
                         'unit_name' => $vUnitName,
                         'pieces_per_box' => $ppb,
                         'ppb' => $ppb,
-                        'trade_price' => $v['purch_price'] ?? $p->purchase_price_per_piece ?? 0,
-                        'retail_price' => $v['sale_price'] ?? $p->sale_price_per_piece ?? 0,
+                        'trade_price' => $p->size_mode === 'by_cartons' ? $vPurchBox : $vPurchPc,
+                        'retail_price' => $p->size_mode === 'by_cartons' ? $vSaleBox : $vSalePc,
                         'wholesale_price' => $v['wholesale_price'] ?? $p->wholesale_price ?? 0,
                         'weight_per_piece' => $v['weight_per_piece'] ?? $p->weight_per_piece ?? 0,
-                        'purchase_price_per_piece' => $v['purch_price'] ?? $p->purchase_price_per_piece ?? 0,
+                        'sale_price_per_piece' => $vSalePc,
+                        'sale_price_per_box' => $vSaleBox,
+                        'purchase_price_per_piece' => $vPurchPc,
+                        'purchase_price_per_box' => $vPurchBox,
                         'purchase_price_per_m2' => $p->purchase_price_per_m2 ?? 0,
                         'sale_discount_percent' => $p->sale_discount_percent ?? 0,
                         'variant_data' => base64_encode($variantJson)
@@ -310,6 +346,13 @@ class ProductController extends Controller
                 }
                 return $expanded;
             }
+
+            $pSalePc = (float)($p->sale_price_per_piece ?? 0);
+            $pPurchPc = (float)($p->purchase_price_per_piece ?? 0);
+            $pSaleBox = (float)($p->sale_price_per_box ?? 0);
+            if ($pSaleBox <= 0 && $pSalePc > 0) $pSaleBox = $pSalePc * $ppb;
+            $pPurchBox = (float)($p->purchase_price_per_box ?? 0);
+            if ($pPurchBox <= 0 && $pPurchPc > 0) $pPurchBox = $pPurchPc * $ppb;
 
             return [[
                 'id' => $p->id,
@@ -322,11 +365,14 @@ class ProductController extends Controller
                 'unit_name' => $unitName,
                 'pieces_per_box' => $ppb,
                 'ppb' => $ppb,
-                'trade_price' => $p->purchase_price_per_piece ?? 0,
-                'retail_price' => $p->sale_price_per_piece ?? 0,
+                'trade_price' => $p->size_mode === 'by_cartons' ? $pPurchBox : $pPurchPc,
+                'retail_price' => $p->size_mode === 'by_cartons' ? $pSaleBox : $pSalePc,
                 'wholesale_price' => $p->wholesale_price ?? 0,
                 'weight_per_piece' => $p->weight_per_piece ?? 0,
-                'purchase_price_per_piece' => $p->purchase_price_per_piece ?? 0,
+                'sale_price_per_piece' => $pSalePc,
+                'sale_price_per_box' => $pSaleBox,
+                'purchase_price_per_piece' => $pPurchPc,
+                'purchase_price_per_box' => $pPurchBox,
                 'purchase_price_per_m2' => $p->purchase_price_per_m2 ?? 0,
                 'sale_discount_percent' => $p->sale_discount_percent ?? 0,
                 'variant_data' => ''
@@ -959,12 +1005,38 @@ class ProductController extends Controller
             // Set total stock qty for by_size
             $totalStockQty = $boxesQuantity;
 
-            $salePricePerPiece = $salePricePerBox; // as salePricePerBox is piece price input
+            $salePricePerPiece = (float) $request->sale_price_per_box;
             $salePricePerBox = $salePricePerPiece * $piecesPerBox;
-            $purchasePricePerPiece = $purchasePricePerPiece;
+            $purchasePricePerPiece = (float) $request->purchase_price_per_piece;
             $purchasePricePerBox = $purchasePricePerPiece * $piecesPerBox;
 
             $totalPrice = $totalStockQty * $salePricePerBox;
+            $totalPurchasePrice = $totalStockQty * $purchasePricePerPiece;
+
+        } elseif ($mode === 'by_cartons') {
+            $piecesPerBox = (int) $request->pieces_per_box;
+            if ($piecesPerBox <= 0) $piecesPerBox = 1;
+
+            $boxesQuantityRaw = (string) $request->boxes_quantity;
+            $loosePieces = (int) $request->loose_pieces;
+
+            if (strpos($boxesQuantityRaw, '.') !== false) {
+                $parts = explode('.', $boxesQuantityRaw);
+                $boxesQuantity = (int)($parts[0] ?? 0);
+                $looseFromDec = (int)($parts[1] ?? 0);
+                $totalStockQty = ($piecesPerBox * $boxesQuantity) + $looseFromDec + $loosePieces;
+            } else {
+                $boxesQuantity = (int) $request->boxes_quantity;
+                $totalStockQty = ($piecesPerBox * $boxesQuantity) + $loosePieces;
+            }
+
+            $salePricePerPiece = (float) ($request->sale_price_per_piece ?: $request->sale_price_per_box);
+            $salePricePerBox = $salePricePerPiece * $piecesPerBox;
+
+            $purchasePricePerPiece = (float) $request->purchase_price_per_piece;
+            $purchasePricePerBox = $purchasePricePerPiece * $piecesPerBox;
+
+            $totalPrice = $totalStockQty * $salePricePerPiece;
             $totalPurchasePrice = $totalStockQty * $purchasePricePerPiece;
 
         } else {

@@ -377,7 +377,7 @@ class PurchaseController extends Controller
         if (! $hasGatepass) {
             $movRows = [];
             foreach ($purchase->items as $item) {
-                // Determine conversion factor and unit for weight products
+                // Determine conversion factor and unit for weight/carton products
                 $convFactor = 1;
                 $unit = strtolower($item->unit ?? '');
                 if (!empty($item->color)) {
@@ -397,8 +397,26 @@ class PurchaseController extends Controller
                     }
                 }
 
+                $product = \App\Models\Product::find($item->product_id);
+                $ppb = ($item->pieces_per_box > 0) ? (int)$item->pieces_per_box : ($product && $product->pieces_per_box > 0 ? (int)$product->pieces_per_box : (int)$convFactor);
+                if ($ppb <= 0) $ppb = 1;
+
                 if ($unit === 'gm' || $unit === 'g' || $unit === 'gram' || $unit === 'grams') {
                     $baseQty = ((float) $item->qty) / 1000.0;
+                } elseif ($unit === 'carton' || $unit === 'ctn' || ($product && $product->size_mode === 'by_cartons')) {
+                    if ($unit === 'pcs' || $unit === 'pc') {
+                        $baseQty = (float) $item->qty;
+                    } else {
+                        $qStr = (string)$item->qty;
+                        if (strpos($qStr, '.') !== false) {
+                            $parts = explode('.', $qStr);
+                            $boxes = (int)($parts[0] ?? 0);
+                            $loose = (int)($parts[1] ?? 0);
+                            $baseQty = ($boxes * $ppb) + $loose;
+                        } else {
+                            $baseQty = ((float) $item->qty) * $ppb;
+                        }
+                    }
                 } else {
                     $baseQty = ((float) $item->qty) * $convFactor;
                 }

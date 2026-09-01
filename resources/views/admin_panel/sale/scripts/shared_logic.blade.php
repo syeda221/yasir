@@ -257,9 +257,9 @@
              let wsPrice = parseFloat(pRes.wholesale_price) || 0;
              let rate = (rowMode === 'wholesale' && wsPrice > 0) ? wsPrice : (pRes.retail_price || 0);
 
-             // Visible price logic: usually per piece, but ensure consistent display
+             // Visible price logic: cartons defaults to carton price, others to unit price
              if (pRes.size_mode == "by_cartons") {
-                 $row.find('.visible-price').val(pRes.sale_price_per_piece || rate || 0);
+                 $row.find('.visible-price').val(pRes.sale_price_per_box || rate || (pRes.sale_price_per_piece * (pRes.pieces_per_box || 1)) || 0);
              } else if (pRes.size_mode == "by_pieces" || pRes.size_mode == "by_kg" || pRes.size_mode == "by_gm" || pRes.size_mode == "by_meter") {
                  $row.find('.visible-price').val(pRes.sale_price_per_piece || rate || 0);
              } else {

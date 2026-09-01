@@ -994,22 +994,25 @@
 
                     // Dynamic Unit
                     let unitName = data.unit_name || 'Pcs';
+                    const sizeMode = data.size_mode || 'std';
                     if (data.size_mode === 'by_kg' || data.size_mode === 'by_gm') {
                         unitName = 'Kg';
-                        $row.find('.unit-toggle-btn').removeClass('btn-outline-info').addClass('btn-outline-primary');
+                        $row.find('.unit-toggle-btn').removeClass('btn-outline-info btn-outline-success').addClass('btn-outline-primary');
+                    } else if (data.size_mode === 'by_cartons') {
+                        unitName = 'Carton';
+                        $row.find('.unit-toggle-btn').removeClass('btn-outline-info btn-outline-primary').addClass('btn-outline-success');
                     }
                     $row.find('.unit-toggle-btn').text(unitName).attr('data-unit', unitName);
                     $row.find('.unit-input-val').val(unitName);
 
+                    const ppb = Number(data.pieces_per_box || 1) || 1;
+                    const pPurchBox = Number(data.purchase_price_per_box || 0) || (Number(data.purchase_price_per_piece || 0) * ppb);
+
                     // Snapshot Data Population
                     $row.find('.hidden-size-mode').val(data.size_mode || '');
-                    $row.find('.hidden-pieces-per-box').val(data.pieces_per_box || 1);
+                    $row.find('.hidden-pieces-per-box').val(ppb);
                     $row.find('.hidden-pieces-per-m2').val(data.pieces_per_m2 || 0);
-                    $row.find('.hidden-price-per-carton').val(
-                        Number(data.purchase_price_per_box || 0) ||
-                        Number(data.purchase_price_per_piece || 0) * Number(data.pieces_per_box || 1) ||
-                        0
-                    );
+                    $row.find('.hidden-price-per-carton').val(pPurchBox);
                     $row.find('.hidden-length').val(data.length || '');
                     $row.find('.hidden-width').val(data.width || '');
                     $row.find('.hidden-variant-data').val(data.variant_data || '');
@@ -1022,10 +1025,14 @@
                     $row.find('.item-disc-percent').val(data.purchase_discount_percent || 0);
 
                     // Price
-                    const sizeMode = data.size_mode || 'std';
                     const pM2 = parseFloat(data.purchase_price_per_m2) || 0;
                     const pPiece = parseFloat(data.purchase_price_per_piece) || parseFloat(data.trade_price) || 0;
-                    let finalPrice = (sizeMode === 'by_size') ? pM2 : pPiece;
+                    let finalPrice = pPiece;
+                    if (sizeMode === 'by_size') {
+                        finalPrice = pM2;
+                    } else if (sizeMode === 'by_cartons') {
+                        finalPrice = pPurchBox > 0 ? pPurchBox : (pPiece * ppb);
+                    }
 
                     $row.find('.price').val(finalPrice);
                     $row.find('.main-qty-input').focus().select();
@@ -1064,15 +1071,41 @@
                 const $btn = $(this);
                 const $row = $btn.closest('tr');
                 const sizeMode = $row.data('sizemode') || $row.find('.hidden-size-mode').val();
+                const ppb = parseFloat($row.find('.hidden-pieces-per-box').val()) || 1;
+                const $priceInp = $row.find('.price');
+                let curPrice = parseFloat($priceInp.val()) || 0;
 
                 if (sizeMode === 'by_kg' || sizeMode === 'by_gm') {
                     let currentUnit = $btn.attr('data-unit') || 'Kg';
                     if (currentUnit.toLowerCase() === 'kg') {
                         currentUnit = 'Gm';
                         $btn.text('Gm').removeClass('btn-outline-primary').addClass('btn-outline-info');
+                        if (curPrice > 0) $priceInp.val((curPrice / 1000).toFixed(4).replace(/\.?0+$/, ''));
                     } else {
                         currentUnit = 'Kg';
                         $btn.text('Kg').removeClass('btn-outline-info').addClass('btn-outline-primary');
+                        if (curPrice > 0) $priceInp.val((curPrice * 1000).toFixed(2));
+                    }
+                    $btn.attr('data-unit', currentUnit);
+                    $row.find('.unit-input-val').val(currentUnit);
+                    recalcRow($row);
+                    recalcAll();
+                } else if (sizeMode === 'by_cartons' || ($btn.attr('data-unit') || '').toLowerCase().includes('carton') || ($btn.attr('data-unit') || '').toLowerCase() === 'ctn') {
+                    let currentUnit = $btn.attr('data-unit') || 'Carton';
+                    if (currentUnit.toLowerCase() === 'carton' || currentUnit.toLowerCase() === 'ctn') {
+                        currentUnit = 'Pcs';
+                        $btn.text('Pcs').removeClass('btn-outline-success').addClass('btn-outline-info');
+                        if (ppb > 1 && curPrice > 0) {
+                            let piecePrice = curPrice / ppb;
+                            $priceInp.val(piecePrice % 1 === 0 ? piecePrice : piecePrice.toFixed(2));
+                        }
+                    } else {
+                        currentUnit = 'Carton';
+                        $btn.text('Carton').removeClass('btn-outline-info').addClass('btn-outline-success');
+                        if (ppb > 1 && curPrice > 0) {
+                            let cartonPrice = curPrice * ppb;
+                            $priceInp.val(cartonPrice % 1 === 0 ? cartonPrice : cartonPrice.toFixed(2));
+                        }
                     }
                     $btn.attr('data-unit', currentUnit);
                     $row.find('.unit-input-val').val(currentUnit);
@@ -1083,15 +1116,31 @@
 
             function recalcRow($row) {
                 const qty = parseFloat($row.find('.main-qty-input').val()) || 0;
+                const qtyStr = ($row.find('.main-qty-input').val() || '').toString().trim();
                 const price = parseFloat($row.find('.price').val()) || 0;
                 const discPct = parseFloat($row.find('.item-disc-percent').val()) || 0;
                 const sizeMode = $row.data('sizemode') || $row.find('.hidden-size-mode').val();
                 const unitVal = ($row.find('.unit-input-val').val() || '').toLowerCase();
                 const pieces_per_m2 = parseFloat($row.data('pieces_per_m2')) || 0;
+                const ppb = parseFloat($row.find('.hidden-pieces-per-box').val()) || 1;
 
                 let gross = 0;
                 if (sizeMode === 'by_size') {
                     gross = (pieces_per_m2 || 1) * qty * price;
+                } else if (sizeMode === 'by_cartons' || unitVal === 'carton' || unitVal === 'ctn') {
+                    if (unitVal === 'pcs' || unitVal === 'pc') {
+                        gross = qty * price;
+                    } else {
+                        if (qtyStr.includes('.')) {
+                            const parts = qtyStr.split('.');
+                            const boxes = parseInt(parts[0]) || 0;
+                            const loose = parseInt(parts[1]) || 0;
+                            const piecePrice = ppb > 0 ? (price / ppb) : price;
+                            gross = (boxes * price) + (loose * piecePrice);
+                        } else {
+                            gross = qty * price;
+                        }
+                    }
                 } else if (unitVal === 'gm' || unitVal === 'g') {
                     gross = (qty / 1000.0) * price;
                 } else {

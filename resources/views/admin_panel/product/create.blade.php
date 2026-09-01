@@ -697,6 +697,7 @@
                 <input type="number" name="wholesale_price" id="wholesale_price" step="0.01" value="0">
                 <input type="number" name="weight_per_piece" id="weight_per_piece" step="0.0001" value="0">
                 <input type="number" name="purchase_price_per_piece" id="purchase_price_per_piece" step="0.01" value="0">
+                <input type="number" name="purchase_price_per_box" id="purchase_price_per_box" step="0.01" value="0">
                 <input type="number" name="alert_carton_quantity" id="alert_carton_quantity" value="0">
             </div>
 
@@ -794,6 +795,7 @@
 
 @section('js')
     <script>
+        var variantMode = 'standard';
         document.addEventListener('DOMContentLoaded', function() {
             const form = document.getElementById('productForm');
             const unitDropdown = document.getElementById('unit-dropdown');
@@ -846,21 +848,35 @@
                 let firstPurch = vPurch.length > 0 ? (parseFloat(vPurch[0].value) || 0) : 0;
                 let firstAlert = vAlert.length > 0 ? (parseFloat(vAlert[0].value) || 0) : 0;
 
+                const setElVal = (id, val) => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = val;
+                };
+
                 const mode = unitDropdown ? unitDropdown.value : 'by_pieces';
+                const vConv = document.querySelectorAll('input[name="variant_conv_factor[]"]');
+                let firstConv = vConv.length > 0 ? (parseFloat(vConv[0].value) || 1) : 1;
+                if (firstConv <= 0) firstConv = 1;
+
                 if(mode === 'by_cartons') {
-                    document.getElementById('boxes_quantity').value = totalStock;
-                    document.getElementById('pieces_per_box').value = 1;
-                    document.getElementById('loose_pieces').value = 0;
-                    document.getElementById('piece_quantity').value = 0;
+                    setElVal('boxes_quantity', totalStock);
+                    setElVal('pieces_per_box', firstConv);
+                    setElVal('loose_pieces', 0);
+                    setElVal('piece_quantity', 0);
+                    setElVal('sale_price_per_box', (firstSale * firstConv).toFixed(2));
+                    setElVal('purchase_price_per_piece', firstPurch);
+                    setElVal('purchase_price_per_box', (firstPurch * firstConv).toFixed(2));
                 } else {
-                    document.getElementById('piece_quantity').value = totalStock;
-                    document.getElementById('boxes_quantity').value = 0;
+                    setElVal('piece_quantity', totalStock);
+                    setElVal('boxes_quantity', 0);
+                    setElVal('pieces_per_box', 1);
+                    setElVal('sale_price_per_box', firstSale);
+                    setElVal('purchase_price_per_piece', firstPurch);
+                    setElVal('purchase_price_per_box', firstPurch);
                 }
-                document.getElementById('sale_price_per_box').value = firstSale;
-                document.getElementById('wholesale_price').value = firstWholesale;
-                document.getElementById('weight_per_piece').value = firstWeight;
-                document.getElementById('purchase_price_per_piece').value = firstPurch;
-                document.getElementById('alert_carton_quantity').value = firstAlert;
+                setElVal('wholesale_price', firstWholesale);
+                setElVal('weight_per_piece', firstWeight);
+                setElVal('alert_carton_quantity', firstAlert);
                 // ------------------------------------------------------------------------
 
                 const btn = document.querySelector('button[type="submit"]');
@@ -945,7 +961,7 @@
             const variantsBody = document.getElementById('variantsBody');
 
             const weightUnits = ['by_kg', 'by_gm', 'by_ton'];
-            let variantMode = 'standard';
+            variantMode = 'standard';
             let manualPrices = {}; // Keep track of manually overridden prices
             let manualNames = {}; // Keep track of manually overridden names
 

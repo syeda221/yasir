@@ -156,7 +156,13 @@ class ReportingController extends Controller
                     // Parent Adjustments
                     $adjQuery = DB::table('stock_movements')
                         ->where('product_id', $product->id)
-                        ->where('type', 'adjustment');
+                        ->where('type', 'adjustment')
+                        ->where(function($q) {
+                            $q->whereNull('ref_type')->orWhere('ref_type', '!=', 'INIT');
+                        })
+                        ->where(function($q) {
+                            $q->whereNull('note')->orWhere('note', 'not like', '%Initial Stock%');
+                        });
                     if ($warehouseId && $warehouseId !== 'all') {
                         $adjQuery->where('note', 'like', "%Warehouse #{$warehouseId}%");
                     }
@@ -234,7 +240,13 @@ class ReportingController extends Controller
                     // Fetch Stock Adjustments
                     $adjQuery = DB::table('stock_movements')
                         ->where('product_id', $product->id)
-                        ->where('type', 'adjustment');
+                        ->where('type', 'adjustment')
+                        ->where(function($q) {
+                            $q->whereNull('ref_type')->orWhere('ref_type', '!=', 'INIT');
+                        })
+                        ->where(function($q) {
+                            $q->whereNull('note')->orWhere('note', 'not like', '%Initial Stock%');
+                        });
                     if ($warehouseId && $warehouseId !== 'all') {
                         $adjQuery->where('note', 'like', "%Warehouse #{$warehouseId}%");
                     }
@@ -369,12 +381,12 @@ class ReportingController extends Controller
                     if ($isCartonMode && $ppb > 1) {
                         $cartons = floor($balance / $ppb);
                         $loose   = $balance % $ppb;
-                        $formattedStock = ($loose > 0) ? "{$cartons} Ctn . {$loose} Pcs" : "{$cartons} Cartons";
+                        $formattedStock = number_format($balance, 0) . " Pcs";
                         $cartonDisplay = ($loose > 0) ? "{$cartons} Ctn + {$loose} Pcs <span class='text-muted small'>({$ppb} pcs/ctn)</span>" : "{$cartons} Ctn <span class='text-muted small'>({$ppb} pcs/ctn)</span>";
                     } elseif ($ppb > 1 && $product->size_mode === 'by_size') {
                         $cartons = floor($balance / $ppb);
                         $loose   = $balance % $ppb;
-                        $formattedStock = ($loose > 0) ? "{$cartons} Box . {$loose} Pcs" : "{$cartons} Boxes";
+                        $formattedStock = number_format($balance, 0) . " Pcs";
                         $cartonDisplay = ($loose > 0) ? "{$cartons} Box + {$loose} Pcs" : "{$cartons} Box";
                     } else {
                         $cartons = '-';
@@ -458,7 +470,13 @@ class ReportingController extends Controller
                 // Stock Adjustments
                 $adjQuery = DB::table('stock_movements')
                     ->where('product_id', $product->id)
-                    ->where('type', 'adjustment');
+                    ->where('type', 'adjustment')
+                    ->where(function($q) {
+                        $q->whereNull('ref_type')->orWhere('ref_type', '!=', 'INIT');
+                    })
+                    ->where(function($q) {
+                        $q->whereNull('note')->orWhere('note', 'not like', '%Initial Stock%');
+                    });
                 if ($warehouseId && $warehouseId !== 'all') {
                     $adjQuery->where('note', 'like', "%Warehouse #{$warehouseId}%");
                 }
@@ -487,12 +505,12 @@ class ReportingController extends Controller
                 if ($isCartonMode && $ppb > 1) {
                     $cartons = floor($balance / $ppb);
                     $loose   = $balance % $ppb;
-                    $formattedStock = ($loose > 0) ? "{$cartons} Ctn . {$loose} Pcs" : "{$cartons} Cartons";
+                    $formattedStock = number_format($balance, 0) . " Pcs";
                     $cartonDisplay = ($loose > 0) ? "{$cartons} Ctn + {$loose} Pcs <span class='text-muted small'>({$ppb} pcs/ctn)</span>" : "{$cartons} Ctn <span class='text-muted small'>({$ppb} pcs/ctn)</span>";
                 } elseif ($ppb > 1 && $product->size_mode === 'by_size') {
                     $cartons = floor($balance / $ppb);
                     $loose   = $balance % $ppb;
-                    $formattedStock = ($loose > 0) ? "{$cartons} Box . {$loose} Pcs" : "{$cartons} Boxes";
+                    $formattedStock = number_format($balance, 0) . " Pcs";
                     $cartonDisplay = ($loose > 0) ? "{$cartons} Box + {$loose} Pcs" : "{$cartons} Box";
                 } else {
                     $cartons = '-';
